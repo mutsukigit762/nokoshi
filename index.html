@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>区分違い未収集 記録</title>
+<style>
+  :root{
+    --bg:#1a1d21;
+    --panel:#23272d;
+    --panel2:#2b3038;
+    --line:#363c45;
+    --ink:#e8eaed;
+    --sub:#9aa3ad;
+    --accent:#e0b341;       /* 処理券の黄 */
+    --accent-dim:#8a6f28;
+    --warn:#d96a4a;          /* 再申込＝返金絡み */
+    --ok:#5fa97a;
+    --ok2:#4f9d6b;
+    --mono:'SFMono-Regular',ui-monospace,'Menlo','Consolas',monospace;
+    --sans:-apple-system,BlinkMacSystemFont,'Hiragino Sans','Noto Sans JP',sans-serif;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.5;}
+  body{padding:0 0 96px 0;}
+  header{
+    position:sticky;top:0;z-index:20;
+    background:linear-gradient(180deg,#1a1d21 0%,#1a1d21 70%,rgba(26,29,33,0));
+    padding:14px 16px 10px;
+  }
+  .h-row{display:flex;align-items:baseline;justify-content:space-between;gap:10px;}
+  h1{font-size:17px;margin:0;letter-spacing:.02em;font-weight:600;}
+  h1 .tag{font-family:var(--mono);font-size:11px;color:var(--accent);border:1px solid var(--accent-dim);border-radius:3px;padding:1px 5px;margin-left:8px;vertical-align:middle;}
+  .sync{font-family:var(--mono);font-size:11px;color:var(--sub);}
+  .sync b{color:var(--accent);font-weight:600;}
+
+  /* 集計バー */
+  .stats{display:flex;gap:8px;padding:0 16px 8px;}
+  .stat{flex:1;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:8px 10px;text-align:center;}
+  .stat .n{font-family:var(--mono);font-size:20px;font-weight:600;line-height:1;}
+  .stat .l{font-size:10.5px;color:var(--sub);margin-top:4px;letter-spacing:.02em;}
+  .stat.warn .n{color:var(--warn);}
+  .stat.fuda .n{color:var(--accent);}
+  .stat.pend .n{color:var(--sub);}
+
+  main{padding:0 16px;}
+
+  /* リスト */
+  .empty{color:var(--sub);text-align:center;padding:48px 16px;font-size:14px;line-height:1.7;}
+  .rec{
+    background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--line);
+    border-radius:8px;padding:10px 12px;margin-bottom:9px;
+  }
+  .rec.fuda{border-left-color:var(--accent);}
+  .rec.saimoushikomi{border-left-color:var(--warn);}
+  .rec.pend{border-left-color:var(--sub);border-left-style:dashed;}
+  .rec-top{display:flex;justify-content:space-between;align-items:baseline;gap:8px;}
+  .rec-date{font-family:var(--mono);font-size:12px;color:var(--sub);}
+  .rec-uke{font-family:var(--mono);font-size:13px;color:var(--ink);letter-spacing:.06em;}
+  .rec-item{font-size:15px;font-weight:600;margin:4px 0 2px;}
+  .rec-amt{font-family:var(--mono);font-size:13px;color:var(--sub);}
+  .rec-amt .a-from{color:var(--sub);}
+  .rec-amt .arr{color:var(--accent);margin:0 4px;}
+  .rec-amt .a-to{color:var(--ink);}
+  .rec-bottom{display:flex;align-items:center;gap:8px;margin-top:7px;}
+  .chip{font-size:11px;font-family:var(--mono);padding:2px 7px;border-radius:99px;border:1px solid var(--line);}
+  .chip.fuda{color:var(--accent);border-color:var(--accent-dim);}
+  .chip.saimoushikomi{color:var(--warn);border-color:#7a3a2a;}
+  .chip.pend{color:var(--sub);}
+  .rec-memo{font-size:12.5px;color:var(--sub);margin-top:6px;white-space:pre-wrap;}
+  .rec-actions{margin-left:auto;display:flex;gap:6px;}
+  .mini{background:none;border:1px solid var(--line);color:var(--sub);border-radius:6px;padding:3px 9px;font-size:12px;cursor:pointer;}
+  .mini:active{background:var(--panel2);}
+
+  /* 追加ボタン */
+  .fab{
+    position:fixed;left:50%;transform:translateX(-50%);bottom:20px;z-index:30;
+    background:var(--accent);color:#1a1d21;border:none;border-radius:99px;
+    padding:14px 28px;font-size:15px;font-weight:700;box-shadow:0 6px 20px rgba(0,0,0,.4);
+    cursor:pointer;letter-spacing:.03em;
+  }
+  .fab:active{transform:translateX(-50%) scale(.97);}
+
+  /* シート */
+  .scrim{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:40;display:none;}
+  .scrim.on{display:block;}
+  .sheet{
+    position:fixed;left:0;right:0;bottom:0;z-index:50;
+    background:var(--panel);border-top-left-radius:18px;border-top-right-radius:18px;
+    padding:8px 16px calc(20px + env(safe-area-inset-bottom));
+    max-height:92vh;overflow-y:auto;transform:translateY(100%);transition:transform .22s ease;
+  }
+  .sheet.on{transform:translateY(0);}
+  .grip{width:38px;height:4px;border-radius:2px;background:var(--line);margin:6px auto 12px;}
+  .sheet h2{font-size:15px;margin:0 0 14px;font-weight:600;}
+  label{display:block;font-size:12px;color:var(--sub);margin:12px 0 5px;letter-spacing:.02em;}
+  input,textarea,select{
+    width:100%;background:var(--panel2);border:1px solid var(--line);border-radius:8px;
+    color:var(--ink);font-size:16px;padding:11px 12px;font-family:var(--sans);
+  }
+  input:focus,textarea:focus,select:focus{outline:none;border-color:var(--accent-dim);}
+  textarea{resize:vertical;min-height:54px;}
+  .field-row{display:flex;gap:10px;}
+  .field-row > div{flex:1;}
+  .amt-row{display:flex;align-items:center;gap:8px;}
+  .amt-row .arrow{color:var(--accent);font-size:18px;padding-top:18px;}
+  .amt-row input{font-family:var(--mono);}
+
+  /* セグメント */
+  .seg{display:flex;gap:6px;margin-top:5px;}
+  .seg button{
+    flex:1;background:var(--panel2);border:1px solid var(--line);color:var(--sub);
+    border-radius:8px;padding:11px 4px;font-size:13px;cursor:pointer;font-weight:600;
+  }
+  .seg button.on[data-v="fuda"]{background:var(--accent);color:#1a1d21;border-color:var(--accent);}
+  .seg button.on[data-v="saimoushikomi"]{background:var(--warn);color:#fff;border-color:var(--warn);}
+  .seg button.on[data-v="pend"]{background:var(--panel);color:var(--ink);border-color:var(--sub);}
+
+  .save{
+    width:100%;margin-top:20px;background:var(--accent);color:#1a1d21;border:none;
+    border-radius:10px;padding:15px;font-size:16px;font-weight:700;cursor:pointer;
+  }
+  .save:active{opacity:.85;}
+  .del{width:100%;margin-top:10px;background:none;border:1px solid #6a3326;color:var(--warn);border-radius:10px;padding:12px;font-size:14px;cursor:pointer;}
+
+  /* 設定 / エクスポート */
+  .toolbar{display:flex;gap:8px;padding:0 16px 10px;}
+  .toolbar button{flex:1;background:var(--panel);border:1px solid var(--line);color:var(--sub);border-radius:8px;padding:8px;font-size:12.5px;cursor:pointer;font-family:var(--mono);}
+  .note{font-size:11px;color:var(--sub);padding:0 16px 8px;line-height:1.6;}
+  .cfg textarea{font-family:var(--mono);font-size:12px;min-height:120px;}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="h-row">
+    <h1>区分違い未収集<span class="tag">記録</span></h1>
+    <span class="sync" id="sync">接続中…</span>
+  </div>
+</header>
+
+<div class="stats">
+  <div class="stat pend"><div class="n" id="s-pend">0</div><div class="l">未対応</div></div>
+  <div class="stat fuda"><div class="n" id="s-fuda">0</div><div class="l">券貼付で解決</div></div>
+  <div class="stat warn"><div class="n" id="s-sai">0</div><div class="l">再申込</div></div>
+</div>
+
+<main>
+  <div id="list"></div>
+</main>
+
+<button class="fab" id="fab">＋ 記録</button>
+
+<!-- 入力シート -->
+<div class="scrim" id="scrim"></div>
+<div class="sheet" id="sheet">
+  <div class="grip"></div>
+  <h2 id="sheet-title">記録を追加</h2>
+
+  <div class="field-row">
+    <div>
+      <label>収集日</label>
+      <input type="date" id="f-date">
+    </div>
+    <div>
+      <label>受付番号 下4桁</label>
+      <input type="text" id="f-uke" inputmode="numeric" maxlength="4" placeholder="0000">
+    </div>
+  </div>
+
+  <label>品目</label>
+  <input type="text" id="f-item" placeholder="タンス など">
+
+  <label>料金区分（申込 → 実際）</label>
+  <div class="amt-row">
+    <input type="number" id="f-from" inputmode="numeric" placeholder="1300">
+    <span class="arrow">→</span>
+    <input type="number" id="f-to" inputmode="numeric" placeholder="2300">
+  </div>
+
+  <label>再回収の処理</label>
+  <div class="seg" id="seg">
+    <button type="button" data-v="pend">未対応</button>
+    <button type="button" data-v="fuda">券貼付</button>
+    <button type="button" data-v="saimoushikomi">再申込</button>
+  </div>
+
+  <label>メモ（任意・誰に何を案内したか等）</label>
+  <textarea id="f-memo" placeholder="清掃事務所の番号を案内 など"></textarea>
+
+  <button class="save" id="save">保存</button>
+  <button class="del" id="del" style="display:none">この記録を削除</button>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getFirestore, collection, getDocs, addDoc, setDoc, deleteDoc, doc }
+  from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+/* ===== Firestore（memo-ce334 に相乗り・コレクションは mishuushuu）===== */
+const firebaseConfig = {
+  apiKey: "AIzaSyCy2qi8vFTqlqjc0VBd8GEbuh6FO0fhs9w",
+  authDomain: "memo-ce334.firebaseapp.com",
+  projectId: "memo-ce334",
+  storageBucket: "memo-ce334.firebasestorage.app",
+  messagingSenderId: "732811990086",
+  appId: "1:732811990086:web:5b69ceb89f80cae7f9a647"
+};
+const COLL = "mishuushuu";
+const app = initializeApp(firebaseConfig);
+const db  = getFirestore(app);
+
+const LS_KEY='mishuushuu_records';   // オフライン時のキャッシュ
+let records=[];
+
+const PROC={
+  fuda:{label:'券貼付'},
+  saimoushikomi:{label:'再申込'},
+  pend:{label:'未対応'}
+};
+
+function setSync(t,cls){
+  const e=document.getElementById('sync');
+  e.innerHTML = cls==='ok' ? '<b>同期中</b>' : t;
+}
+function cacheLocal(){ localStorage.setItem(LS_KEY,JSON.stringify(records)); }
+function loadCache(){ try{records=JSON.parse(localStorage.getItem(LS_KEY))||[];}catch(e){records=[];} }
+
+/* ---- Firestore 読み書き ---- */
+async function pull(){
+  try{
+    const snap=await getDocs(collection(db,COLL));
+    records=[];
+    snap.forEach(d=>records.push({id:d.id,...d.data()}));
+    sortRecords();
+    cacheLocal();
+    setSync('同期中','ok');
+    render();
+  }catch(e){
+    console.warn('pull失敗',e);
+    setSync('オフライン');
+    loadCache();render();
+  }
+}
+async function pushRec(rec){
+  const {id,...data}=rec;
+  if(id){
+    await setDoc(doc(db,COLL,id),data);
+    return id;
+  }else{
+    const ref=await addDoc(collection(db,COLL),data);
+    return ref.id;
+  }
+}
+async function delRec(id){ await deleteDoc(doc(db,COLL,id)); }
+
+function sortRecords(){
+  records.sort((a,b)=>(b.date||'').localeCompare(a.date||'')||(b.created||0)-(a.created||0));
+}
+
+/* ============ 描画 ============ */
+function fmtDate(d){
+  if(!d)return'';
+  const p=d.split('-');
+  if(p.length===3)return `${p[1]}/${p[2]}`;
+  return d;
+}
+function esc(s){return(s||'').replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));}
+
+function render(){
+  const list=document.getElementById('list');
+  let f=0,s=0,p=0;
+  records.forEach(r=>{
+    if(r.proc==='fuda')f++;
+    else if(r.proc==='saimoushikomi')s++;
+    else p++;
+  });
+  document.getElementById('s-fuda').textContent=f;
+  document.getElementById('s-sai').textContent=s;
+  document.getElementById('s-pend').textContent=p;
+
+  if(records.length===0){
+    list.innerHTML='<div class="empty">まだ記録がありません。\nサイズオーバーで置いてきた案件を\n＋から記録していく。</div>';
+    return;
+  }
+  list.innerHTML='';
+  records.forEach((r,i)=>{
+    const cls = r.proc==='fuda'?'fuda':r.proc==='saimoushikomi'?'saimoushikomi':'pend';
+    const procLabel = (PROC[r.proc]||PROC.pend).label;
+    const el=document.createElement('div');
+    el.className='rec '+cls;
+    el.innerHTML=`
+      <div class="rec-top">
+        <span class="rec-date">${fmtDate(r.date)}</span>
+        <span class="rec-uke">${r.uke?('#'+r.uke):''}</span>
+      </div>
+      <div class="rec-item">${esc(r.item)||'（品目未入力）'}</div>
+      <div class="rec-amt">
+        ${r.from?`<span class="a-from">${Number(r.from).toLocaleString()}円</span>`:''}
+        ${r.from&&r.to?'<span class="arr">→</span>':''}
+        ${r.to?`<span class="a-to">${Number(r.to).toLocaleString()}円</span>`:''}
+      </div>
+      <div class="rec-bottom">
+        <span class="chip ${cls}">${procLabel}</span>
+        <span class="rec-actions">
+          <button class="mini" data-edit="${i}">編集</button>
+        </span>
+      </div>
+      ${r.memo?`<div class="rec-memo">${esc(r.memo)}</div>`:''}
+    `;
+    list.appendChild(el);
+  });
+  list.querySelectorAll('[data-edit]').forEach(b=>{
+    b.onclick=()=>openSheet(parseInt(b.dataset.edit));
+  });
+}
+
+/* ============ 入力シート ============ */
+let editIndex=-1, curProc='pend';
+const scrim=document.getElementById('scrim'), sheet=document.getElementById('sheet');
+
+function openSheet(idx){
+  editIndex = (idx==null?-1:idx);
+  const isEdit = editIndex>=0;
+  document.getElementById('sheet-title').textContent = isEdit?'記録を編集':'記録を追加';
+  document.getElementById('del').style.display = isEdit?'block':'none';
+
+  const r = isEdit?records[editIndex]:{};
+  document.getElementById('f-date').value = r.date || new Date().toISOString().slice(0,10);
+  document.getElementById('f-uke').value  = r.uke || '';
+  document.getElementById('f-item').value = r.item || '';
+  document.getElementById('f-from').value = r.from || '';
+  document.getElementById('f-to').value   = r.to || '';
+  document.getElementById('f-memo').value = r.memo || '';
+  setProc(r.proc || 'pend');
+
+  scrim.classList.add('on');
+  requestAnimationFrame(()=>sheet.classList.add('on'));
+}
+function closeSheet(){
+  sheet.classList.remove('on');
+  setTimeout(()=>scrim.classList.remove('on'),200);
+}
+function setProc(v){
+  curProc=v;
+  document.querySelectorAll('#seg button').forEach(b=>{
+    b.classList.toggle('on', b.dataset.v===v);
+  });
+}
+document.querySelectorAll('#seg button').forEach(b=>{
+  b.onclick=()=>setProc(b.dataset.v);
+});
+document.getElementById('fab').onclick=()=>openSheet(null);
+scrim.onclick=closeSheet;
+
+document.getElementById('save').onclick=async()=>{
+  const rec={
+    date: document.getElementById('f-date').value,
+    uke:  document.getElementById('f-uke').value.trim(),
+    item: document.getElementById('f-item').value.trim(),
+    from: document.getElementById('f-from').value.trim(),
+    to:   document.getElementById('f-to').value.trim(),
+    proc: curProc,
+    memo: document.getElementById('f-memo').value.trim(),
+  };
+  if(editIndex>=0){
+    rec.id=records[editIndex].id;
+    rec.created=records[editIndex].created||Date.now();
+    records[editIndex]=rec;
+  }else{
+    rec.created=Date.now();
+    records.unshift(rec);
+  }
+  sortRecords();
+  cacheLocal();
+  render();
+  closeSheet();
+  try{
+    const id=await pushRec(rec);
+    if(!rec.id){rec.id=id;cacheLocal();}
+    setSync('同期中','ok');
+  }catch(e){console.warn('保存はローカルのみ',e);setSync('オフライン');}
+};
+
+document.getElementById('del').onclick=async()=>{
+  if(editIndex<0)return;
+  const r=records[editIndex];
+  records.splice(editIndex,1);
+  cacheLocal();render();closeSheet();
+  if(r.id){try{await delRec(r.id);}catch(e){console.warn(e);}}
+};
+
+/* ============ 起動 ============ */
+window.openSheet=openSheet;
+loadCache();
+render();
+pull();
+</script>
+</body>
+</html>
