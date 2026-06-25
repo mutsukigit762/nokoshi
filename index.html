@@ -58,6 +58,7 @@
   .rec-date{font-family:var(--mono);font-size:12px;color:var(--sub);}
   .rec-uke{font-family:var(--mono);font-size:13px;color:var(--ink);letter-spacing:.06em;}
   .rec-item{font-size:15px;font-weight:600;margin:4px 0 2px;}
+  .rec-item .arr{color:var(--sub);margin:0 6px;font-weight:400;}
   .rec-amt{font-family:var(--mono);font-size:13px;color:var(--sub);}
   .rec-amt .a-from{color:var(--sub);}
   .rec-amt .arr{color:var(--accent);margin:0 4px;}
@@ -171,8 +172,12 @@
     </div>
   </div>
 
-  <label>品目</label>
-  <input type="text" id="f-item" placeholder="タンス など">
+  <label>品目（申込 → 実際）</label>
+  <div class="amt-row">
+    <input type="text" id="f-item" placeholder="プリンター">
+    <span class="arrow">→</span>
+    <input type="text" id="f-item2" placeholder="コピー機">
+  </div>
 
   <label>料金区分（申込 → 実際）</label>
   <div class="amt-row">
@@ -297,7 +302,7 @@ function render(){
         <span class="rec-date">${fmtDate(r.date)}</span>
         <span class="rec-uke">${r.uke?('#'+r.uke):''}</span>
       </div>
-      <div class="rec-item">${esc(r.item)||'（品目未入力）'}</div>
+      <div class="rec-item">${esc(r.item)||'（品目未入力）'}${r.item2?`<span class="arr">→</span>${esc(r.item2)}`:''}</div>
       <div class="rec-amt">
         ${r.from?`<span class="a-from">${Number(r.from).toLocaleString()}円</span>`:''}
         ${r.from&&r.to?'<span class="arr">→</span>':''}
@@ -332,6 +337,7 @@ function openSheet(idx){
   document.getElementById('f-date').value = r.date || new Date().toISOString().slice(0,10);
   document.getElementById('f-uke').value  = r.uke || '';
   document.getElementById('f-item').value = r.item || '';
+  document.getElementById('f-item2').value = r.item2 || '';
   document.getElementById('f-from').value = r.from || '';
   document.getElementById('f-to').value   = r.to || '';
   document.getElementById('f-memo').value = r.memo || '';
@@ -361,6 +367,7 @@ document.getElementById('save').onclick=async()=>{
     date: document.getElementById('f-date').value,
     uke:  document.getElementById('f-uke').value.trim(),
     item: document.getElementById('f-item').value.trim(),
+    item2: document.getElementById('f-item2').value.trim(),
     from: document.getElementById('f-from').value.trim(),
     to:   document.getElementById('f-to').value.trim(),
     proc: curProc,
