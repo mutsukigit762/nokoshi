@@ -97,11 +97,14 @@
   input,textarea,select{
     width:100%;background:var(--panel2);border:1px solid var(--line);border-radius:8px;
     color:var(--ink);font-size:16px;padding:11px 12px;font-family:var(--sans);
+    min-width:0;-webkit-appearance:none;appearance:none;
   }
+  input[type="date"]{min-width:0;}
   input:focus,textarea:focus,select:focus{outline:none;border-color:var(--accent-dim);}
   textarea{resize:vertical;min-height:54px;}
   .field-row{display:flex;gap:10px;}
-  .field-row > div{flex:1;}
+  .field-row > div{flex:1 1 0;min-width:0;}
+  .field-row input{width:100%;}
   .amt-row{display:flex;align-items:center;gap:8px;}
   .amt-row .arrow{color:var(--accent);font-size:18px;padding-top:18px;}
   .amt-row input{font-family:var(--mono);}
