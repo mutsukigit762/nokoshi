@@ -3,7 +3,15 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>区分違い未収集 記録</title>
+<title>電子決済区分違い</title>
+
+<!-- PWA -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="電子決済区分違い">
+<meta name="theme-color" content="#1a1d21">
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Crect width='180' height='180' rx='40' fill='%231a1d21'/%3E%3Crect x='34' y='34' width='112' height='112' rx='20' fill='none' stroke='%23e0b341' stroke-width='8'/%3E%3Ctext x='90' y='118' font-size='72' font-family='-apple-system,sans-serif' font-weight='700' fill='%23e0b341' text-anchor='middle'%3E区%3C/text%3E%3C/svg%3E">
+<link rel="manifest" href="data:application/manifest+json,%7B%22name%22%3A%22%E9%9B%BB%E5%AD%90%E6%B1%BA%E6%B8%88%E5%8C%BA%E5%88%86%E9%81%95%E3%81%84%22%2C%22short_name%22%3A%22%E9%9B%BB%E5%AD%90%E6%B1%BA%E6%B8%88%E5%8C%BA%E5%88%86%E9%81%95%E3%81%84%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%231a1d21%22%2C%22theme_color%22%3A%22%231a1d21%22%7D">
 <style>
   :root{
     --bg:#1a1d21;
@@ -138,7 +146,7 @@
 
 <header>
   <div class="h-row">
-    <h1>区分違い未収集<span class="tag">記録</span></h1>
+    <h1>電子決済区分違い<span class="tag">記録</span></h1>
     <span class="sync" id="sync">接続中…</span>
   </div>
 </header>
@@ -174,10 +182,11 @@
 
   <label>品目（申込 → 実際）</label>
   <div class="amt-row">
-    <input type="text" id="f-item" placeholder="プリンター">
+    <input type="text" id="f-item" list="item-history" placeholder="プリンター">
     <span class="arrow">→</span>
-    <input type="text" id="f-item2" placeholder="コピー機">
+    <input type="text" id="f-item2" list="item-history" placeholder="コピー機">
   </div>
+  <datalist id="item-history"></datalist>
 
   <label>料金区分（申込 → 実際）</label>
   <div class="amt-row">
@@ -275,6 +284,16 @@ function fmtDate(d){
 }
 function esc(s){return(s||'').replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));}
 
+function updateItemHistory(){
+  const set=new Set();
+  records.forEach(r=>{
+    if(r.item) set.add(r.item.trim());
+    if(r.item2) set.add(r.item2.trim());
+  });
+  const dl=document.getElementById('item-history');
+  dl.innerHTML=[...set].sort().map(v=>`<option value="${esc(v)}">`).join('');
+}
+
 function render(){
   const list=document.getElementById('list');
   let f=0,s=0,p=0;
@@ -286,6 +305,7 @@ function render(){
   document.getElementById('s-fuda').textContent=f;
   document.getElementById('s-sai').textContent=s;
   document.getElementById('s-pend').textContent=p;
+  updateItemHistory();
 
   if(records.length===0){
     list.innerHTML='<div class="empty">まだ記録がありません。\nサイズオーバーで置いてきた案件を\n＋から記録していく。</div>';
